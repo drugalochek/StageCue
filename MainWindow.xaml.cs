@@ -7,6 +7,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
+using NAudio.Wave;
 
 namespace StageCue;
 
@@ -27,6 +28,7 @@ public partial class MainWindow : Window
     private bool _hasTimelineSelection;
     private TimeSpan _selectedPosition = TimeSpan.Zero;
     private TimeSpan _pendingPosition = TimeSpan.Zero;
+    private double[] _waveformPeaks = Array.Empty<double>();
     private readonly DispatcherTimer _timelineTimer = new() { Interval = TimeSpan.FromMilliseconds(180) };
     private const int WM_HOTKEY = 0x0312;
     private const uint MOD_ALT = 0x0001, MOD_CONTROL = 0x0002, MOD_NOREPEAT = 0x4000;
@@ -72,6 +74,7 @@ public partial class MainWindow : Window
         }
 
         CurrentTrack = track;
+        LoadWaveform(track.Path);
         _playing = false;
         _mediaReady = false;
         _pendingPlay = autoplay;
@@ -203,7 +206,91 @@ public partial class MainWindow : Window
             _updatingTimeline = false;
         }
         TimelineTime.Text = $"{FormatTime(position)} / {FormatTime(duration)}";
+        DrawWaveform(position, duration);
         UpdateCueUi();
+    }
+
+
+    private void LoadWaveform(string path)
+    {
+        try
+        {
+            using var reader = new AudioFileReader(path);
+            const int bins = 520;
+            var peaks = new double[bins];
+            var totalSamples = Math.Max(1L, reader.Length / sizeof(float));
+            var buffer = new float[8192];
+            long sampleIndex = 0;
+            int read;
+            while ((read = reader.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                for (int i = 0; i < read; i++)
+                {
+                    int bin = (int)Math.Min(bins - 1, sampleIndex * bins / totalSamples);
+                    double value = Math.Abs(buffer[i]);
+                    if (value > peaks[bin]) peaks[bin] = value;
+                    sampleIndex++;
+                }
+            }
+            double max = peaks.Max();
+            _waveformPeaks = max > 0 ? peaks.Select(v => v / max).ToArray() : peaks;
+        }
+        catch { _waveformPeaks = Array.Empty<double>(); }
+        if (WaveformCanvas != null) DrawWaveform(TimeSpan.Zero, TimeSpan.Zero);
+    }
+
+    private void DrawWaveform(TimeSpan position, TimeSpan duration)
+    {
+        if (WaveformCanvas == null || WaveformCanvas.ActualWidth < 2 || WaveformCanvas.ActualHeight < 2) return;
+        WaveformCanvas.Children.Clear();
+        double width = WaveformCanvas.ActualWidth;
+        double height = WaveformCanvas.ActualHeight;
+        double mid = height / 2;
+        double progress = duration.TotalSeconds > 0 ? Math.Clamp(position.TotalSeconds / duration.TotalSeconds, 0, 1) : 0;
+        int count = _waveformPeaks.Length;
+        if (count == 0)
+        {
+            WaveformCanvas.Children.Add(new System.Windows.Shapes.Line { X1 = 0, X2 = width, Y1 = mid, Y2 = mid, Stroke = new SolidColorBrush(Color.FromRgb(100, 110, 119)), StrokeThickness = 1 });
+            return;
+        }
+        double step = width / count;
+        for (int i = 0; i < count; i++)
+        {
+            double amp = Math.Max(1.5, _waveformPeaks[i] * (height * .46));
+            var bar = new System.Windows.Shapes.Rectangle
+            {
+                Width = Math.Max(1, step * .72), Height = amp * 2,
+                RadiusX = 1, RadiusY = 1,
+                Fill = (double)i / count <= progress
+                    ? new SolidColorBrush(Color.FromRgb(75, 141, 206))
+                    : new SolidColorBrush(Color.FromRgb(196, 201, 205))
+            };
+            Canvas.SetLeft(bar, i * step);
+            Canvas.SetTop(bar, mid - amp);
+            WaveformCanvas.Children.Add(bar);
+        }
+        WaveformCanvas.Children.Add(new System.Windows.Shapes.Line { X1 = progress * width, X2 = progress * width, Y1 = 0, Y2 = height, Stroke = new SolidColorBrush(Color.FromRgb(230, 235, 239)), StrokeThickness = 1 });
+    }
+
+    private void WaveformCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        var duration = _player.NaturalDuration.HasTimeSpan ? _player.NaturalDuration.TimeSpan : TimeSpan.Zero;
+        DrawWaveform(_mediaReady ? _player.Position : _selectedPosition, duration);
+    }
+
+    private void WaveformCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (CurrentTrack is null) return;
+        var point = e.GetPosition(WaveformCanvas);
+        double ratio = Math.Clamp(point.X / Math.Max(1, WaveformCanvas.ActualWidth), 0, 1);
+        var duration = _player.NaturalDuration.HasTimeSpan ? _player.NaturalDuration.TimeSpan : TimeSpan.Zero;
+        if (duration <= TimeSpan.Zero) return;
+        _selectedPosition = TimeSpan.FromSeconds(duration.TotalSeconds * ratio);
+        _seekRequested = true;
+        _hasTimelineSelection = true;
+        if (_mediaReady) CommitSeek();
+        else UpdateTimelineUi();
+        e.Handled = true;
     }
 
     private void UpdateCueUi()

@@ -102,46 +102,90 @@ public class FeedPage : BasePage
         Root.Children.Add(grid);
     }
 }
-public class LibraryPage : BasePage
+public class LibraryPage : Page
 {
-    private readonly ListBox _list=new();
-    private readonly TextBox _rename=new();
-    private readonly TextBlock _count;
-    public LibraryPage(MainWindow app,bool openPicker=false):base(app,"Локальные файлы","Фонотека StageCue")
+    private readonly MainWindow _app;
+    private readonly WrapPanel _tiles = new() { Margin = new Thickness(7, 7, 7, 12) };
+    private readonly TextBox _rename = new() { MinWidth = 190, Width = 240, Padding = new Thickness(7, 4, 7, 4) };
+    private readonly TextBlock _count = new() { Foreground = Theme.Muted, FontSize = 10, VerticalAlignment = VerticalAlignment.Center };
+    private Track? _selected;
+
+    public LibraryPage(MainWindow app, bool openPicker = false)
     {
-        var top=new DockPanel();
-        _count=Theme.Text($"{app.Tracks.Count} ФОНОГРАММ",10,true,Theme.Muted); DockPanel.SetDock(_count,Dock.Left); top.Children.Add(_count);
-        var add=Theme.Button("＋ Добавить файлы",(_,_)=>AddFiles(),true); DockPanel.SetDock(add,Dock.Right); top.Children.Add(add); Root.Children.Add(top);
-        _list.MinHeight=420; _list.Margin=new Thickness(0,5,0,5); _list.BorderThickness=new Thickness(0); _list.Background=Brushes.Transparent; _list.SelectionChanged+=(_,_)=>{if(SelectedTrack() is Track t){_rename.Text=t.Name;app.SelectTrack(t,false);}};
-        Refresh(); Root.Children.Add(_list);
-        Root.Children.Add(Theme.Text("НАЗВАНИЕ ВЫБРАННОЙ ФОНОГРАММЫ",10,true,Theme.Muted));
-        _rename.Margin=new Thickness(0,8,0,10); Root.Children.Add(_rename);
-        var row=new StackPanel{Orientation=Orientation.Horizontal};
-        row.Children.Add(Theme.Button("Сохранить название",(_,_)=>{if(SelectedTrack() is Track t&&!string.IsNullOrWhiteSpace(_rename.Text)){t.Name=_rename.Text.Trim();app.SaveLibrary();Refresh(t);}},true));
-        row.Children.Add(Theme.Button("Удалить",(_,_)=>{if(SelectedTrack() is Track t){app.RemoveTrack(t);Refresh();}},false));
-        Root.Children.Add(row);
-        if(openPicker) Loaded+=(_,_)=>AddFiles();
+        _app = app;
+        Background = Brushes.Transparent;
+        var root = new Grid();
+        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = _tiles };
+        Grid.SetRow(scroll, 0);
+        root.Children.Add(scroll);
+
+        var editor = new Border { Background = Theme.Brush("#292E33"), BorderBrush = Theme.Brush("#414A53"), BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(9, 7, 9, 7) };
+        var row = new DockPanel();
+        _count.Text = $"{app.Tracks.Count} ФОНОГРАММ";
+        DockPanel.SetDock(_count, Dock.Left);
+        row.Children.Add(_count);
+        var add = new Button { Content = "＋", Width = 30, Height = 27, Background = Theme.Accent, Foreground = Brushes.White, Margin = new Thickness(6, 0, 0, 0) };
+        add.Click += (_, _) => AddFiles();
+        DockPanel.SetDock(add, Dock.Right);
+        row.Children.Add(add);
+        var save = new Button { Content = "Сохранить", Padding = new Thickness(10, 4, 10, 4), Margin = new Thickness(6, 0, 0, 0) };
+        save.Click += (_, _) => { if (_selected != null && !string.IsNullOrWhiteSpace(_rename.Text)) { _selected.Name = _rename.Text.Trim(); _app.SaveLibrary(); Refresh(); } };
+        DockPanel.SetDock(save, Dock.Right);
+        row.Children.Add(save);
+        var remove = new Button { Content = "Удалить", Padding = new Thickness(10, 4, 10, 4), Margin = new Thickness(6, 0, 0, 0) };
+        remove.Click += (_, _) => { if (_selected != null) { _app.RemoveTrack(_selected); _selected = null; _rename.Text = ""; Refresh(); } };
+        DockPanel.SetDock(remove, Dock.Right);
+        row.Children.Add(remove);
+        _rename.ToolTip = "Название выбранной фонограммы";
+        DockPanel.SetDock(_rename, Dock.Right);
+        row.Children.Add(_rename);
+        editor.Child = row;
+        Grid.SetRow(editor, 1);
+        root.Children.Add(editor);
+
+        Content = root;
+        Refresh();
+        if (openPicker) Loaded += (_, _) => AddFiles();
     }
-    private Track? SelectedTrack() => (_list.SelectedItem as ListBoxItem)?.Tag as Track;
+
     private void AddFiles()
     {
-        var d=new OpenFileDialog{Multiselect=true,Filter="Аудио|*.mp3;*.wav;*.wma;*.m4a;*.aac;*.mid;*.midi|Все файлы|*.*"};
-        if(d.ShowDialog()==true){AppWindow.AddFiles(d.FileNames);Refresh();}
+        var dialog = new OpenFileDialog { Multiselect = true, Filter = "Аудио|*.mp3;*.wav;*.wma;*.m4a;*.aac;*.mid;*.midi|Все файлы|*.*" };
+        if (dialog.ShowDialog() == true) { _app.AddFiles(dialog.FileNames); Refresh(); }
     }
-    private void Refresh(Track? selected=null)
+
+    private void Refresh()
     {
-        _list.Items.Clear();
-        foreach(var t in AppWindow.Tracks.OrderBy(t=>t.Number))
+        _tiles.Children.Clear();
+        foreach (var track in _app.Tracks.OrderBy(t => t.Number))
         {
-            var row=new Grid{Margin=new Thickness(4,1,4,1),MinHeight=38};
-            row.ColumnDefinitions.Add(new ColumnDefinition{Width=new GridLength(48)});
-            row.ColumnDefinitions.Add(new ColumnDefinition{Width=new GridLength(1,GridUnitType.Star)});
-            var num=Theme.Text(t.Number.ToString("00"),12,true,Theme.Accent); num.VerticalAlignment=VerticalAlignment.Center; row.Children.Add(num);
-            var name=Theme.Text(t.Name,12,true); name.VerticalAlignment=VerticalAlignment.Center; Grid.SetColumn(name,1); row.Children.Add(name);
-            _list.Items.Add(new ListBoxItem{Content=row,Tag=t,Padding=new Thickness(7,4,7,4),Background=Brushes.Transparent,BorderThickness=new Thickness(0)});
+            var cover = new Border
+            {
+                Height = 104, Width = 132, CornerRadius = new CornerRadius(2),
+                Background = new LinearGradientBrush(
+                    Color.FromRgb((byte)(37 + track.Number * 11 % 45), (byte)(52 + track.Number * 7 % 55), (byte)(68 + track.Number * 13 % 65)),
+                    Color.FromRgb(24, 29, 34), 90)
+            };
+            var art = new Grid();
+            art.Children.Add(new TextBlock { Text = "♫", FontSize = 42, Foreground = new SolidColorBrush(Color.FromArgb(190, 218, 226, 233)), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center });
+            art.Children.Add(new TextBlock { Text = track.Number.ToString("00"), FontSize = 10, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(7) });
+            cover.Child = art;
+
+            var name = new TextBlock { Text = track.Name, FontSize = 10, Foreground = Theme.White, TextWrapping = TextWrapping.Wrap, MaxHeight = 30, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(1, 6, 1, 1) };
+            var details = new TextBlock { Text = System.IO.Path.GetExtension(track.Path).Trim('.').ToUpperInvariant() + "  •  STAGECUE", FontSize = 8, Foreground = Theme.Muted, Margin = new Thickness(1, 2, 1, 0) };
+            var content = new StackPanel();
+            content.Children.Add(cover);
+            content.Children.Add(name);
+            content.Children.Add(details);
+            var button = new Button { Content = content, Width = 148, Height = 166, Padding = new Thickness(6), Margin = new Thickness(3), Background = Theme.Brush("#2B3035"), BorderBrush = Theme.Brush("#424A52"), BorderThickness = new Thickness(1), HorizontalContentAlignment = HorizontalAlignment.Left, VerticalContentAlignment = VerticalAlignment.Top };
+            button.Click += (_, _) => { _selected = track; _rename.Text = track.Name; _app.SelectTrack(track, false); };
+            button.MouseDoubleClick += (_, _) => _app.SelectTrack(track, true);
+            _tiles.Children.Add(button);
         }
-        _count.Text=$"{AppWindow.Tracks.Count} ФОНОГРАММ";
-        if(selected!=null) foreach(ListBoxItem item in _list.Items) if(ReferenceEquals(item.Tag,selected)) _list.SelectedItem=item;
+        _count.Text = $"{_app.Tracks.Count} ФОНОГРАММ";
     }
 }
 public class HotkeysPage : BasePage

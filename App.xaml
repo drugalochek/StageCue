@@ -3,13 +3,13 @@
  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
  StartupUri="MainWindow.xaml">
  <Application.Resources>
-  <Color x:Key="Bg">#0D1118</Color><Color x:Key="Panel">#171D27</Color><Color x:Key="Panel2">#222B38</Color>
-  <Color x:Key="Accent">#D8FF5F</Color><Color x:Key="TextMain">#F2F4F7</Color><Color x:Key="Muted">#8B97A5</Color>
+  <Color x:Key="Bg">#1B2026</Color><Color x:Key="Panel">#252B32</Color><Color x:Key="Panel2">#303943</Color>
+  <Color x:Key="Accent">#4B8DCE</Color><Color x:Key="TextMain">#E8EDF2</Color><Color x:Key="Muted">#9BA8B5</Color>
   <SolidColorBrush x:Key="BgBrush" Color="{StaticResource Bg}"/><SolidColorBrush x:Key="PanelBrush" Color="{StaticResource Panel}"/>
   <SolidColorBrush x:Key="Panel2Brush" Color="{StaticResource Panel2}"/><SolidColorBrush x:Key="AccentBrush" Color="{StaticResource Accent}"/>
   <SolidColorBrush x:Key="TextBrush" Color="{StaticResource TextMain}"/><SolidColorBrush x:Key="MutedBrush" Color="{StaticResource Muted}"/>
   <Style x:Key="SectionLabel" TargetType="TextBlock">
-   <Setter Property="Foreground" Value="#697585"/><Setter Property="FontSize" Value="9"/><Setter Property="FontWeight" Value="Bold"/>
+   <Setter Property="Foreground" Value="#8190A0"/><Setter Property="FontSize" Value="9"/><Setter Property="FontWeight" Value="Bold"/>
   </Style>
   <Style x:Key="NavButton" TargetType="Button">
    <Setter Property="Foreground" Value="#AEB7C3"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/>
@@ -26,7 +26,7 @@
    </ControlTemplate></Setter.Value></Setter>
   </Style>
   <Style TargetType="Button">
-   <Setter Property="Foreground" Value="#F2F4F7"/><Setter Property="Background" Value="#27313F"/><Setter Property="BorderThickness" Value="0"/>
+   <Setter Property="Foreground" Value="#F2F4F7"/><Setter Property="Background" Value="#303943"/><Setter Property="BorderThickness" Value="0"/>
    <Setter Property="Padding" Value="13,9"/><Setter Property="Cursor" Value="Hand"/><Setter Property="FontSize" Value="12"/>
    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
     <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
@@ -37,7 +37,7 @@
      <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Bd" Property="Opacity" Value=".35"/></Trigger></ControlTemplate.Triggers>
    </ControlTemplate></Setter.Value></Setter>
   </Style>
-  <Style TargetType="TextBox"><Setter Property="Background" Value="#202936"/><Setter Property="Foreground" Value="#F2F4F7"/><Setter Property="BorderBrush" Value="#354151"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="10"/><Setter Property="FontSize" Value="13"/></Style>
+  <Style TargetType="TextBox"><Setter Property="Background" Value="#202936"/><Setter Property="Foreground" Value="#F2F4F7"/><Setter Property="BorderBrush" Value="#46515D"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="10"/><Setter Property="FontSize" Value="13"/></Style>
   <Style TargetType="ListBox"><Setter Property="Background" Value="#151B24"/><Setter Property="BorderBrush" Value="#303A48"/><Setter Property="Foreground" Value="#F2F4F7"/><Setter Property="Padding" Value="5"/></Style>
   <Style TargetType="Slider"><Setter Property="Foreground" Value="#D8FF5F"/><Setter Property="Margin" Value="0,3"/></Style>
  </Application.Resources>

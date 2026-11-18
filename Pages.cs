@@ -248,6 +248,11 @@ public class LibraryPage : Page
         catch { return null; }
     }
 
+    public void SetSearchQuery(string value)
+    {
+        if (_search.Text != value) _search.Text = value;
+    }
+
     public void Refresh()
     {
         _tiles.Children.Clear();

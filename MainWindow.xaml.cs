@@ -36,10 +36,13 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        DataContext = this;
+        Tracks.CollectionChanged += (_, _) => PlaylistCount.Text = Tracks.Count.ToString();
+        _player.Volume = 0.8;
         Directory.CreateDirectory(_dataDir);
         _libraryFile = Path.Combine(_dataDir, "library.json");
         LoadLibrary();
-        PageFrame.Navigate(new OverviewPage(this));
+        PageFrame.Navigate(new LibraryPage(this));
         Loaded += (_, _) => RegisterKeys();
         SourceInitialized += (_, _) => { _source = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle); _source?.AddHook(WndProc); };
         Closed += (_, _) => { UnregisterKeys(); SaveLibrary(); _timelineTimer.Stop(); _player.Close(); };
@@ -243,11 +246,31 @@ public partial class MainWindow : Window
     {
         NowTitle.Text = CurrentTrack?.Name ?? "Ничего не играет";
         NowSub.Text = CurrentTrack is null ? "Выбери трек в фонотеке или нажми горячую клавишу" : $"Трек №{CurrentTrack.Number}  •  {Path.GetFileName(CurrentTrack.Path)}";
-        PlayButton.Content = _playing ? "Ⅱ  Пауза" : "▶  Играть";
+        PlayButton.Content = _playing ? "Ⅱ" : "▶";
+        if (PlaylistList != null && CurrentTrack != null && PlaylistList.SelectedItem != CurrentTrack)
+            PlaylistList.SelectedItem = CurrentTrack;
+        if (StatusText != null) StatusText.Text = _playing ? "ВОСПРОИЗВЕДЕНИЕ" : (CurrentTrack == null ? "ГОТОВ К РАБОТЕ" : "ТРЕК ВЫБРАН");
         UpdateCueUi();
     }
 
     private void PlayButton_Click(object sender, RoutedEventArgs e) => TogglePlay();
+    private void StopButton_Click(object sender, RoutedEventArgs e)
+    {
+        _player.Stop(); _playing = false; _selectedPosition = TimeSpan.Zero; _seekRequested = false;
+        UpdatePlayerUi(); UpdateTimelineUi();
+    }
+    private void VolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_player != null) _player.Volume = VolumeSlider.Value;
+    }
+    private void PlaylistList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (PlaylistList.SelectedItem is Track track && track != CurrentTrack) SelectTrack(track, false);
+    }
+    private void PlaylistList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (PlaylistList.SelectedItem is Track track) SelectTrack(track, true);
+    }
     private void RestartButton_Click(object sender, RoutedEventArgs e) => Restart();
     private void NavHome_Click(object sender, RoutedEventArgs e) => ShowPage(new OverviewPage(this));
     private void NavFeed_Click(object sender, RoutedEventArgs e) => ShowPage(new FeedPage(this));

@@ -102,10 +102,11 @@
      <ListBox x:Name="PlaylistList" ItemsSource="{Binding Tracks}" Background="Transparent" BorderThickness="0" Padding="3" SelectionChanged="PlaylistList_SelectionChanged" MouseDoubleClick="PlaylistList_MouseDoubleClick" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
       <ListBox.ItemTemplate><DataTemplate>
        <Border Background="#2B3034" Padding="7,6" Margin="1,1">
-        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="18"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="18"/><ColumnDefinition Width="22"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
          <CheckBox IsChecked="True" VerticalAlignment="Top" IsHitTestVisible="False" Focusable="False" Margin="0,1,0,0"/>
-         <StackPanel Grid.Column="1" Margin="4,0,0,0"><TextBlock Text="{Binding Number, StringFormat={}{0}.} {Binding Name}" Foreground="#E2E6E9" FontSize="10" TextTrimming="CharacterEllipsis"/><TextBlock Text="{Binding Path}" Foreground="#89949D" FontSize="8" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/></StackPanel>
-         <TextBlock Grid.Column="2" Text="•••••" Foreground="#8D979F" FontSize="8" VerticalAlignment="Center" Margin="4,0,0,0"/>
+         <TextBlock Grid.Column="1" Text="{Binding Number}" Foreground="#AAB4BC" FontSize="9" VerticalAlignment="Top"/>
+         <StackPanel Grid.Column="2" Margin="3,0,0,0"><TextBlock Text="{Binding Name}" Foreground="#E2E6E9" FontSize="10" TextTrimming="CharacterEllipsis"/><TextBlock Text="{Binding Path}" Foreground="#89949D" FontSize="8" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/></StackPanel>
+         <TextBlock Grid.Column="3" Text="•••••" Foreground="#8D979F" FontSize="8" VerticalAlignment="Center" Margin="4,0,0,0"/>
         </Grid>
        </Border>
       </DataTemplate></ListBox.ItemTemplate>

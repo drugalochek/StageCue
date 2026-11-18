@@ -39,6 +39,6 @@
   </Style>
   <Style TargetType="TextBox"><Setter Property="Background" Value="#202936"/><Setter Property="Foreground" Value="#F2F4F7"/><Setter Property="BorderBrush" Value="#46515D"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="10"/><Setter Property="FontSize" Value="13"/></Style>
   <Style TargetType="ListBox"><Setter Property="Background" Value="#151B24"/><Setter Property="BorderBrush" Value="#303A48"/><Setter Property="Foreground" Value="#F2F4F7"/><Setter Property="Padding" Value="5"/></Style>
-  <Style TargetType="Slider"><Setter Property="Foreground" Value="#D8FF5F"/><Setter Property="Margin" Value="0,3"/></Style>
+  <Style TargetType="Slider"><Setter Property="Foreground" Value="#4B8DCE"/><Setter Property="Margin" Value="0,3"/></Style>
  </Application.Resources>
 </Application>

@@ -15,7 +15,7 @@
       <TextBlock Text="STAGECUE" FontSize="14" FontWeight="Bold" VerticalAlignment="Center" Margin="7,0,0,0"/>
      </StackPanel>
      <Border Width="116" Height="116" Background="#202020" BorderBrush="#484848" BorderThickness="1" HorizontalAlignment="Left">
-      <Grid><Image x:Name="NowCoverImage" Stretch="Uniform" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/><TextBlock Text="♫" FontSize="43" Foreground="#7E8992" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/></Grid>
+      <Grid><Image x:Name="NowCoverImage" Stretch="Uniform" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/><TextBlock x:Name="NowCoverFallback" Text="♫" FontSize="43" Foreground="#7E8992" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/></Grid>
      </Border>
     </StackPanel>
     <Grid Grid.Row="0" Grid.Column="1" Margin="10,0,8,0">

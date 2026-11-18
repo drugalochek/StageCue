@@ -4,6 +4,7 @@
  Title="StageCue" Width="1480" Height="920" MinWidth="1180" MinHeight="760"
  WindowStartupLocation="CenterScreen" Background="#1D1F21" Foreground="#E2E4E7">
  <Grid>
+  <Grid.ColumnDefinitions><ColumnDefinition Width="142"/><ColumnDefinition Width="*"/><ColumnDefinition Width="250"/></Grid.ColumnDefinitions>
   <Grid.RowDefinitions><RowDefinition Height="184"/><RowDefinition Height="34"/><RowDefinition Height="*"/><RowDefinition Height="38"/></Grid.RowDefinitions>
   <Border Grid.Row="0" Background="#242628" BorderBrush="#3A3D40" BorderThickness="0,0,0,1" Padding="14,10">
    <Grid>

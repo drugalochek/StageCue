@@ -275,6 +275,7 @@ public partial class MainWindow : Window
     private void NavHome_Click(object sender, RoutedEventArgs e) => ShowPage(new OverviewPage(this));
     private void NavFeed_Click(object sender, RoutedEventArgs e) => ShowPage(new FeedPage(this));
     private void NavLibrary_Click(object sender, RoutedEventArgs e) => ShowPage(new LibraryPage(this));
+    private void AddFilesButton_Click(object sender, RoutedEventArgs e) => ShowPage(new LibraryPage(this, true));
     private void NavKeys_Click(object sender, RoutedEventArgs e) => ShowPage(new HotkeysPage(this));
     private void NavSettings_Click(object sender, RoutedEventArgs e) => ShowPage(new SettingsPage(this));
 

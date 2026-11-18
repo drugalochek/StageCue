@@ -30,6 +30,7 @@ public partial class MainWindow : Window
     private TimeSpan _selectedPosition = TimeSpan.Zero;
     private TimeSpan _pendingPosition = TimeSpan.Zero;
     private double[] _waveformPeaks = Array.Empty<double>();
+    private int _waveformLoadVersion;
     private readonly HashSet<int> _registeredHotkeyIds = new();
     private readonly DispatcherTimer _timelineTimer = new() { Interval = TimeSpan.FromMilliseconds(180) };
     private const int WM_HOTKEY = 0x0312;
@@ -47,6 +48,7 @@ public partial class MainWindow : Window
         _libraryFile = Path.Combine(_dataDir, "library.json");
         LoadLibrary();
         PageFrame.Navigate(new LibraryPage(this));
+        QuickSearch.TextChanged += (_, _) => { if (PageFrame.Content is LibraryPage library) library.SetSearchQuery(QuickSearch.Text); };
         Loaded += (_, _) => RegisterKeys();
         PreviewKeyDown += MainWindow_PreviewKeyDown;
         PreviewGotKeyboardFocus += MainWindow_PreviewGotKeyboardFocus;
@@ -217,7 +219,19 @@ public partial class MainWindow : Window
     }
 
 
-    private void LoadWaveform(string path)
+    private async void LoadWaveform(string path)
+    {
+        int version = ++_waveformLoadVersion;
+        _waveformPeaks = Array.Empty<double>();
+        DrawWaveform(TimeSpan.Zero, TimeSpan.Zero);
+        double[] peaks = await Task.Run(() => BuildWaveform(path));
+        if (version != _waveformLoadVersion || CurrentTrack?.Path != path) return;
+        _waveformPeaks = peaks;
+        var duration = _player.NaturalDuration.HasTimeSpan ? _player.NaturalDuration.TimeSpan : TimeSpan.Zero;
+        DrawWaveform(_mediaReady ? _player.Position : _selectedPosition, duration);
+    }
+
+    private static double[] BuildWaveform(string path)
     {
         try
         {
@@ -239,10 +253,9 @@ public partial class MainWindow : Window
                 }
             }
             double max = peaks.Max();
-            _waveformPeaks = max > 0 ? peaks.Select(v => v / max).ToArray() : peaks;
+            return max > 0 ? peaks.Select(v => v / max).ToArray() : peaks;
         }
-        catch { _waveformPeaks = Array.Empty<double>(); }
-        if (WaveformCanvas != null) DrawWaveform(TimeSpan.Zero, TimeSpan.Zero);
+        catch { return Array.Empty<double>(); }
     }
 
     private void DrawWaveform(TimeSpan position, TimeSpan duration)

@@ -6,7 +6,7 @@
  <Grid>
   <Grid.ColumnDefinitions><ColumnDefinition Width="142"/><ColumnDefinition Width="*"/><ColumnDefinition Width="250"/></Grid.ColumnDefinitions>
   <Grid.RowDefinitions><RowDefinition Height="184"/><RowDefinition Height="34"/><RowDefinition Height="*"/><RowDefinition Height="38"/></Grid.RowDefinitions>
-  <Border Grid.Row="0" Background="#242628" BorderBrush="#3A3D40" BorderThickness="0,0,0,1" Padding="14,10">
+  <Border Grid.Row="0" Grid.ColumnSpan="3" Background="#242628" BorderBrush="#3A3D40" BorderThickness="0,0,0,1" Padding="14,10">
    <Grid>
     <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="58"/></Grid.RowDefinitions>
     <Grid.ColumnDefinitions><ColumnDefinition Width="142"/><ColumnDefinition Width="*"/><ColumnDefinition Width="250"/></Grid.ColumnDefinitions>
@@ -59,7 +59,7 @@
     </Grid>
    </Grid>
   </Border>
-  <Border Grid.Row="1" Background="#292C2F" BorderBrush="#3C4044" BorderThickness="0,0,0,1">
+  <Border Grid.Row="1" Grid.ColumnSpan="3" Background="#292C2F" BorderBrush="#3C4044" BorderThickness="0,0,0,1">
    <DockPanel LastChildFill="True">
     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
      <Button Content="Фонотека" Style="{StaticResource NavButton}" Click="NavLibrary_Click" Padding="13,5"/>
@@ -70,7 +70,7 @@
     <TextBlock Text="STAGECUE  /  LOCAL MUSIC LIBRARY" Foreground="#7E8992" FontSize="9" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,14,0"/>
    </DockPanel>
   </Border>
-  <Grid Grid.Row="2">
+  <Grid Grid.Row="2" Grid.ColumnSpan="3">
    <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/><ColumnDefinition Width="318"/></Grid.ColumnDefinitions>
    <Border Grid.Column="0" Background="#25282B" BorderBrush="#3B3F43" BorderThickness="0,0,1,0" Padding="9,12">
     <DockPanel>
@@ -117,7 +117,7 @@
     </DockPanel>
    </Border>
   </Grid>
-  <Border Grid.Row="3" Background="#4B8DCE" Padding="10,0">
+  <Border Grid.Row="3" Grid.ColumnSpan="3" Background="#4B8DCE" Padding="10,0">
    <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
     <TextBox x:Name="QuickSearch" Background="#3977B2" BorderThickness="0" Foreground="White" Padding="6,3" VerticalAlignment="Center" Width="250" HorizontalAlignment="Left" ToolTip="Быстрый поиск" />
     <TextBlock Grid.Column="1" x:Name="StatusText" Text="ГОТОВ К РАБОТЕ" Foreground="White" FontSize="9" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,18,0"/>

@@ -10,12 +10,12 @@ namespace StageCue;
 
 internal static class Theme
 {
-    public static readonly Brush Panel = Brush("#171F2A");
-    public static readonly Brush Panel2 = Brush("#222D3A");
-    public static readonly Brush Line = Brush("#303B49");
-    public static readonly Brush Muted = Brush("#8996A6");
-    public static readonly Brush Accent = Brush("#D8FF5F");
-    public static readonly Brush White = Brush("#F2F4F7");
+    public static readonly Brush Panel = Brush("#252B32");
+    public static readonly Brush Panel2 = Brush("#303943");
+    public static readonly Brush Line = Brush("#46515D");
+    public static readonly Brush Muted = Brush("#9BA8B5");
+    public static readonly Brush Accent = Brush("#76A9D8");
+    public static readonly Brush White = Brush("#E8EDF2");
     public static SolidColorBrush Brush(string hex) => new((Color)ColorConverter.ConvertFromString(hex));
     public static TextBlock Text(string value, double size=13, bool bold=false, Brush? color=null) =>
         new() { Text=value, FontSize=size, FontWeight=bold?FontWeights.SemiBold:FontWeights.Normal, Foreground=color??White, TextWrapping=TextWrapping.Wrap };
@@ -24,7 +24,7 @@ internal static class Theme
             Padding=padding??new Thickness(17), Margin=margin??new Thickness(0,0,0,12), Child=child };
     public static Button Button(string text, RoutedEventHandler click, bool accent=false)
     {
-        var b=new Button { Content=text, Background=accent?Accent:Panel2, Foreground=accent?Brush("#151A20"):White,
+        var b=new Button { Content=text, Background=accent?Accent:Panel2, Foreground=accent?Brush("#17212B"):White,
             Padding=new Thickness(14,10,14,10), Margin=new Thickness(0,0,8,0), FontWeight=FontWeights.SemiBold };
         b.Click+=click; return b;
     }

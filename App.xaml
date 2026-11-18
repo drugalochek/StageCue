@@ -3,8 +3,8 @@
  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
  StartupUri="MainWindow.xaml">
  <Application.Resources>
-  <Color x:Key="Bg">#1B2026</Color><Color x:Key="Panel">#252B32</Color><Color x:Key="Panel2">#303943</Color>
-  <Color x:Key="Accent">#4B8DCE</Color><Color x:Key="TextMain">#E8EDF2</Color><Color x:Key="Muted">#9BA8B5</Color>
+  <Color x:Key="Bg">#202020</Color><Color x:Key="Panel">#292929</Color><Color x:Key="Panel2">#343434</Color>
+  <Color x:Key="Accent">#438AC6</Color><Color x:Key="TextMain">#E8EDF2</Color><Color x:Key="Muted">#A0A0A0</Color>
   <SolidColorBrush x:Key="BgBrush" Color="{StaticResource Bg}"/><SolidColorBrush x:Key="PanelBrush" Color="{StaticResource Panel}"/>
   <SolidColorBrush x:Key="Panel2Brush" Color="{StaticResource Panel2}"/><SolidColorBrush x:Key="AccentBrush" Color="{StaticResource Accent}"/>
   <SolidColorBrush x:Key="TextBrush" Color="{StaticResource TextMain}"/><SolidColorBrush x:Key="MutedBrush" Color="{StaticResource Muted}"/>
@@ -37,7 +37,7 @@
      <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Bd" Property="Opacity" Value=".35"/></Trigger></ControlTemplate.Triggers>
    </ControlTemplate></Setter.Value></Setter>
   </Style>
-  <Style TargetType="TextBox"><Setter Property="Background" Value="#202936"/><Setter Property="Foreground" Value="#F2F4F7"/><Setter Property="BorderBrush" Value="#46515D"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="10"/><Setter Property="FontSize" Value="13"/></Style>
+  <Style TargetType="TextBox"><Setter Property="Background" Value="#202936"/><Setter Property="Foreground" Value="#F2F4F7"/><Setter Property="BorderBrush" Value="#484848"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="10"/><Setter Property="FontSize" Value="13"/></Style>
   <Style TargetType="ListBox"><Setter Property="Background" Value="#151B24"/><Setter Property="BorderBrush" Value="#303A48"/><Setter Property="Foreground" Value="#F2F4F7"/><Setter Property="Padding" Value="5"/></Style>
   <Style TargetType="Slider"><Setter Property="Foreground" Value="#4B8DCE"/><Setter Property="Margin" Value="0,3"/></Style>
  </Application.Resources>

@@ -218,7 +218,7 @@ public partial class MainWindow : Window
             using var reader = new AudioFileReader(path);
             const int bins = 520;
             var peaks = new double[bins];
-            var totalSamples = Math.Max(1L, reader.Length / sizeof(float));
+            var totalSamples = Math.Max(1L, (long)(reader.TotalTime.TotalSeconds * reader.WaveFormat.SampleRate * reader.WaveFormat.Channels));
             var buffer = new float[8192];
             long sampleIndex = 0;
             int read;

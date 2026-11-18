@@ -448,6 +448,8 @@ public partial class MainWindow : Window
             var hwnd = new WindowInteropHelper(this).Handle;
             for (int id = 100; id <= 109; id++)
                 if (_registeredHotkeyIds.Remove(id)) UnregisterHotKey(hwnd, id);
+            for (int id = 200; id <= 202; id++)
+                if (_registeredHotkeyIds.Remove(id)) UnregisterHotKey(hwnd, id);
         }
     }
 
@@ -460,6 +462,9 @@ public partial class MainWindow : Window
             int vk = i == 0 ? 0x30 : 0x30 + i;
             TryRegisterHotkey(hwnd, 100 + i, MOD_NOREPEAT, (uint)vk);
         }
+        TryRegisterHotkey(hwnd, 200, MOD_NOREPEAT, 0x20);
+        TryRegisterHotkey(hwnd, 201, MOD_NOREPEAT, 0x0D);
+        TryRegisterHotkey(hwnd, 202, MOD_CONTROL | MOD_NOREPEAT, 0x20);
     }
 
     private void TryRegisterHotkey(IntPtr hwnd, int id, uint modifiers, uint key)

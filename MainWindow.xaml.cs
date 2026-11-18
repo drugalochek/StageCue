@@ -1,0 +1,342 @@
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Threading;
+
+namespace StageCue;
+
+public partial class MainWindow : Window
+{
+    public ObservableCollection<Track> Tracks { get; } = new();
+    public Track? CurrentTrack { get; private set; }
+    private readonly MediaPlayer _player = new();
+    private readonly string _dataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "StageCue");
+    private readonly string _libraryFile;
+    private HwndSource? _source;
+    private bool _playing;
+    private bool _mediaReady;
+    private bool _pendingPlay;
+    private bool _updatingTimeline;
+    private bool _isSeeking;
+    private bool _seekRequested;
+    private bool _hasTimelineSelection;
+    private TimeSpan _selectedPosition = TimeSpan.Zero;
+    private TimeSpan _pendingPosition = TimeSpan.Zero;
+    private readonly DispatcherTimer _timelineTimer = new() { Interval = TimeSpan.FromMilliseconds(180) };
+    private const int WM_HOTKEY = 0x0312;
+    private const uint MOD_ALT = 0x0001, MOD_CONTROL = 0x0002, MOD_NOREPEAT = 0x4000;
+    [DllImport("user32.dll")] private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+    [DllImport("user32.dll")] private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+    public MainWindow()
+    {
+        InitializeComponent();
+        Directory.CreateDirectory(_dataDir);
+        _libraryFile = Path.Combine(_dataDir, "library.json");
+        LoadLibrary();
+        PageFrame.Navigate(new OverviewPage(this));
+        Loaded += (_, _) => RegisterKeys();
+        SourceInitialized += (_, _) => { _source = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle); _source?.AddHook(WndProc); };
+        Closed += (_, _) => { UnregisterKeys(); SaveLibrary(); _timelineTimer.Stop(); _player.Close(); };
+        _player.MediaOpened += (_, _) =>
+        {
+            _mediaReady = true;
+            _player.Position = ClampPosition(_pendingPosition);
+            UpdateTimelineUi();
+            if (_pendingPlay) { _pendingPlay = false; _player.Play(); _playing = true; }
+            UpdatePlayerUi();
+        };
+        _player.MediaEnded += (_, _) => { _playing = false; Dispatcher.Invoke(() => { UpdatePlayerUi(); UpdateTimelineUi(); }); };
+        _player.MediaFailed += (_, e) => { _mediaReady = false; _pendingPlay = false; MessageBox.Show("Не удалось открыть аудио: " + e.ErrorException?.Message, "StageCue"); };
+        _timelineTimer.Tick += (_, _) => { if (!_isSeeking) UpdateTimelineUi(); };
+        _timelineTimer.Start();
+    }
+
+    public void ShowPage(Page page) => PageFrame.Navigate(page);
+
+    public void SelectTrack(Track track, bool autoplay)
+    {
+        if (CurrentTrack == track)
+        {
+            if (autoplay) Play();
+            UpdatePlayerUi();
+            return;
+        }
+
+        CurrentTrack = track;
+        _playing = false;
+        _mediaReady = false;
+        _pendingPlay = autoplay;
+        _selectedPosition = TimeSpan.Zero;
+        _pendingPosition = TimeSpan.Zero;
+        _seekRequested = false;
+        _hasTimelineSelection = false;
+        try
+        {
+            _player.Stop();
+            _player.Open(new Uri(track.Path));
+            UpdatePlayerUi();
+            UpdateTimelineUi();
+        }
+        catch (Exception ex) { MessageBox.Show(ex.Message, "Ошибка аудио"); }
+    }
+
+    public void Play()
+    {
+        if (CurrentTrack is null) return;
+        if (!_mediaReady)
+        {
+            if (_player.Source is null || _player.Source.LocalPath != CurrentTrack.Path)
+            {
+                _pendingPosition = _seekRequested ? _selectedPosition : TimeSpan.Zero;
+                _pendingPlay = true;
+                _player.Open(new Uri(CurrentTrack.Path));
+            }
+            else _pendingPlay = true;
+            return;
+        }
+
+        if (_seekRequested)
+        {
+            _player.Position = ClampPosition(_selectedPosition);
+            _seekRequested = false;
+        }
+        _player.Play();
+        _playing = true;
+        UpdatePlayerUi();
+    }
+
+    public void Pause()
+    {
+        _player.Pause();
+        _playing = false;
+        UpdatePlayerUi();
+        UpdateTimelineUi();
+    }
+
+    public void TogglePlay()
+    {
+        if (_playing) Pause();
+        else Play();
+    }
+
+    public void Restart()
+    {
+        if (CurrentTrack is null) return;
+        _selectedPosition = TimeSpan.Zero;
+        _seekRequested = true;
+        if (_mediaReady)
+        {
+            _player.Position = TimeSpan.Zero;
+            _seekRequested = false;
+            _player.Play();
+            _playing = true;
+            UpdatePlayerUi();
+        }
+        else
+        {
+            _pendingPosition = TimeSpan.Zero;
+            _pendingPlay = true;
+            if (_player.Source is null) _player.Open(new Uri(CurrentTrack.Path));
+        }
+        UpdateTimelineUi();
+    }
+
+    // Ctrl+Space stores the selected timeline position as this track's persistent cue point.
+    public void PlayFromCue()
+    {
+        if (CurrentTrack is null) return;
+        if (_hasTimelineSelection)
+            CurrentTrack.CuePositionSeconds = Math.Max(0, _selectedPosition.TotalSeconds);
+        else if (_mediaReady)
+            CurrentTrack.CuePositionSeconds = Math.Max(0, _player.Position.TotalSeconds);
+        SaveLibrary();
+        var cue = TimeSpan.FromSeconds(Math.Max(0, CurrentTrack.CuePositionSeconds));
+        _selectedPosition = cue;
+        _seekRequested = true;
+        if (_mediaReady)
+        {
+            _player.Position = ClampPosition(cue);
+            _seekRequested = false;
+            _player.Play();
+            _playing = true;
+            UpdatePlayerUi();
+            UpdateTimelineUi();
+        }
+        else
+        {
+            _pendingPosition = cue;
+            _pendingPlay = true;
+            if (_player.Source is null) _player.Open(new Uri(CurrentTrack.Path));
+        }
+        UpdateCueUi();
+    }
+
+    private TimeSpan ClampPosition(TimeSpan value)
+    {
+        if (_player.NaturalDuration.HasTimeSpan && value > _player.NaturalDuration.TimeSpan)
+            return _player.NaturalDuration.TimeSpan;
+        return value < TimeSpan.Zero ? TimeSpan.Zero : value;
+    }
+
+    private static string FormatTime(TimeSpan t) => $"{(int)t.TotalMinutes:00}:{t.Seconds:00}";
+
+    private void UpdateTimelineUi()
+    {
+        if (!IsLoaded) return;
+        var duration = _player.NaturalDuration.HasTimeSpan ? _player.NaturalDuration.TimeSpan : TimeSpan.Zero;
+        var position = _mediaReady ? _player.Position : _selectedPosition;
+        if (!_isSeeking)
+        {
+            _updatingTimeline = true;
+            TimelineSlider.Value = duration.TotalSeconds > 0
+                ? Math.Clamp(position.TotalSeconds / duration.TotalSeconds * 1000, 0, 1000)
+                : 0;
+            _updatingTimeline = false;
+        }
+        TimelineTime.Text = $"{FormatTime(position)} / {FormatTime(duration)}";
+        UpdateCueUi();
+    }
+
+    private void UpdateCueUi()
+    {
+        if (CurrentTrack is null || CurrentTrack.CuePositionSeconds <= 0)
+            CueTime.Text = "Точка старта: не задана";
+        else
+            CueTime.Text = $"Точка старта: {FormatTime(TimeSpan.FromSeconds(CurrentTrack.CuePositionSeconds))}  •  Ctrl+Пробел";
+    }
+
+    private void TimelineSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_updatingTimeline || CurrentTrack is null) return;
+        _isSeeking = true;
+        var duration = _player.NaturalDuration.HasTimeSpan ? _player.NaturalDuration.TimeSpan : TimeSpan.Zero;
+        if (duration > TimeSpan.Zero)
+        {
+            _selectedPosition = TimeSpan.FromSeconds(duration.TotalSeconds * TimelineSlider.Value / 1000.0);
+            _seekRequested = true;
+            _hasTimelineSelection = true;
+            TimelineTime.Text = $"{FormatTime(_selectedPosition)} / {FormatTime(duration)}";
+        }
+    }
+
+    private void TimelineSlider_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e) => CommitSeek();
+    private void TimelineSlider_PreviewKeyUp(object sender, KeyEventArgs e) => CommitSeek();
+
+    private void CommitSeek()
+    {
+        _isSeeking = false;
+        if (_seekRequested && _mediaReady)
+        {
+            _player.Position = ClampPosition(_selectedPosition);
+            _seekRequested = false;
+        }
+        UpdateTimelineUi();
+    }
+
+    private void UpdatePlayerUi()
+    {
+        NowTitle.Text = CurrentTrack?.Name ?? "Ничего не играет";
+        NowSub.Text = CurrentTrack is null ? "Выбери трек в фонотеке или нажми горячую клавишу" : $"Трек №{CurrentTrack.Number}  •  {Path.GetFileName(CurrentTrack.Path)}";
+        PlayButton.Content = _playing ? "Ⅱ  Пауза" : "▶  Играть";
+        UpdateCueUi();
+    }
+
+    private void PlayButton_Click(object sender, RoutedEventArgs e) => TogglePlay();
+    private void RestartButton_Click(object sender, RoutedEventArgs e) => Restart();
+    private void NavHome_Click(object sender, RoutedEventArgs e) => ShowPage(new OverviewPage(this));
+    private void NavFeed_Click(object sender, RoutedEventArgs e) => ShowPage(new FeedPage(this));
+    private void NavLibrary_Click(object sender, RoutedEventArgs e) => ShowPage(new LibraryPage(this));
+    private void NavKeys_Click(object sender, RoutedEventArgs e) => ShowPage(new HotkeysPage(this));
+    private void NavSettings_Click(object sender, RoutedEventArgs e) => ShowPage(new SettingsPage(this));
+
+    private void RegisterKeys()
+    {
+        var hwnd = new WindowInteropHelper(this).Handle;
+        for (int i = 0; i < 10; i++)
+        {
+            int vk = i == 0 ? 0x30 : 0x30 + i;
+            RegisterHotKey(hwnd, 100 + i, MOD_NOREPEAT, (uint)vk);
+            RegisterHotKey(hwnd, 110 + i, MOD_ALT | MOD_NOREPEAT, (uint)vk);
+            RegisterHotKey(hwnd, 120 + i, MOD_CONTROL | MOD_NOREPEAT, (uint)vk);
+            RegisterHotKey(hwnd, 130 + i, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, (uint)vk);
+        }
+        RegisterHotKey(hwnd, 200, MOD_NOREPEAT, 0x20); // Space
+        RegisterHotKey(hwnd, 201, MOD_NOREPEAT, 0x0D); // Enter
+        RegisterHotKey(hwnd, 202, MOD_CONTROL | MOD_NOREPEAT, 0x20); // Ctrl+Space: saved cue
+    }
+
+    private void UnregisterKeys()
+    {
+        var hwnd = new WindowInteropHelper(this).Handle;
+        for (int id = 100; id <= 139; id++) UnregisterHotKey(hwnd, id);
+        UnregisterHotKey(hwnd, 200); UnregisterHotKey(hwnd, 201); UnregisterHotKey(hwnd, 202);
+    }
+
+    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == WM_HOTKEY)
+        {
+            int id = wParam.ToInt32();
+            if (id == 200) TogglePlay();
+            else if (id == 201) Restart();
+            else if (id == 202) PlayFromCue();
+            else
+            {
+                int group = (id - 100) / 10;
+                int digit = (id - 100) % 10;
+                int number = group switch { 0 => (digit == 0 ? 10 : digit), 1 => (digit == 0 ? 20 : 10 + digit), 2 => (digit == 0 ? 30 : 20 + digit), _ => (digit == 0 ? 40 : 30 + digit) };
+                var track = Tracks.FirstOrDefault(t => t.Number == number);
+                if (track != null) SelectTrack(track, true);
+            }
+            handled = true;
+        }
+        return IntPtr.Zero;
+    }
+
+    public void AddFiles(IEnumerable<string> paths)
+    {
+        foreach (var path in paths.Where(File.Exists))
+        {
+            if (Tracks.Any(t => string.Equals(t.Path, path, StringComparison.OrdinalIgnoreCase))) continue;
+            int n = 1; while (Tracks.Any(t => t.Number == n)) n++;
+            Tracks.Add(new Track { Number = n, Name = Path.GetFileNameWithoutExtension(path), Path = path });
+        }
+        SaveLibrary();
+    }
+
+    public void RemoveTrack(Track track)
+    {
+        if (CurrentTrack == track) { Pause(); CurrentTrack = null; _mediaReady = false; _player.Close(); UpdatePlayerUi(); UpdateTimelineUi(); }
+        Tracks.Remove(track); SaveLibrary();
+    }
+
+    public void SaveLibrary() => File.WriteAllText(_libraryFile, System.Text.Json.JsonSerializer.Serialize(Tracks));
+
+    private void LoadLibrary()
+    {
+        try
+        {
+            if (File.Exists(_libraryFile))
+            {
+                var list = System.Text.Json.JsonSerializer.Deserialize<List<Track>>(File.ReadAllText(_libraryFile));
+                if (list != null) foreach (var t in list.Where(t => File.Exists(t.Path))) Tracks.Add(t);
+            }
+        }
+        catch { }
+    }
+}
+
+public class Track
+{
+    public int Number { get; set; }
+    public string Name { get; set; } = "";
+    public string Path { get; set; } = "";
+    public double CuePositionSeconds { get; set; }
+    public override string ToString() => $"{Number:00}   {Name}";
+}

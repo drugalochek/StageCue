@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using NAudio.Wave;
 
@@ -29,6 +30,7 @@ public partial class MainWindow : Window
     private TimeSpan _selectedPosition = TimeSpan.Zero;
     private TimeSpan _pendingPosition = TimeSpan.Zero;
     private double[] _waveformPeaks = Array.Empty<double>();
+    private readonly HashSet<int> _registeredHotkeyIds = new();
     private readonly DispatcherTimer _timelineTimer = new() { Interval = TimeSpan.FromMilliseconds(180) };
     private const int WM_HOTKEY = 0x0312;
     private const uint MOD_ALT = 0x0001, MOD_CONTROL = 0x0002, MOD_NOREPEAT = 0x4000;
@@ -46,6 +48,7 @@ public partial class MainWindow : Window
         LoadLibrary();
         PageFrame.Navigate(new LibraryPage(this));
         Loaded += (_, _) => RegisterKeys();
+        PreviewKeyDown += MainWindow_PreviewKeyDown;
         SourceInitialized += (_, _) => { _source = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle); _source?.AddHook(WndProc); };
         Closed += (_, _) => { UnregisterKeys(); SaveLibrary(); _timelineTimer.Stop(); _player.Close(); };
         _player.MediaOpened += (_, _) =>
@@ -75,6 +78,7 @@ public partial class MainWindow : Window
 
         CurrentTrack = track;
         LoadWaveform(track.Path);
+        UpdateCurrentCover(track.Path);
         _playing = false;
         _mediaReady = false;
         _pendingPlay = autoplay;
@@ -329,9 +333,28 @@ public partial class MainWindow : Window
         UpdateTimelineUi();
     }
 
+    private void UpdateCurrentCover(string path)
+    {
+        try
+        {
+            var pictures = TagLib.File.Create(path).Tag.Pictures;
+            if (pictures.Length == 0) { NowCoverImage.Source = null; return; }
+            using var stream = new MemoryStream(pictures[0].Data.Data);
+            var bitmap = new BitmapImage();
+            bitmap.BeginInit();
+            bitmap.CacheOption = BitmapCacheOption.OnLoad;
+            bitmap.StreamSource = stream;
+            bitmap.EndInit();
+            bitmap.Freeze();
+            NowCoverImage.Source = bitmap;
+        }
+        catch { NowCoverImage.Source = null; }
+    }
+
     private void UpdatePlayerUi()
     {
         NowTitle.Text = CurrentTrack?.Name ?? "Ничего не играет";
+        if (CurrentTrack == null) NowCoverImage.Source = null;
         NowSub.Text = CurrentTrack is null ? "Выбери трек в фонотеке или нажми горячую клавишу" : $"Трек №{CurrentTrack.Number}  •  {Path.GetFileName(CurrentTrack.Path)}";
         PlayButton.Content = _playing ? "Ⅱ" : "▶";
         if (PlaylistList != null && CurrentTrack != null && PlaylistList.SelectedItem != CurrentTrack)
@@ -372,21 +395,84 @@ public partial class MainWindow : Window
         for (int i = 0; i < 10; i++)
         {
             int vk = i == 0 ? 0x30 : 0x30 + i;
-            RegisterHotKey(hwnd, 100 + i, MOD_NOREPEAT, (uint)vk);
-            RegisterHotKey(hwnd, 110 + i, MOD_ALT | MOD_NOREPEAT, (uint)vk);
-            RegisterHotKey(hwnd, 120 + i, MOD_CONTROL | MOD_NOREPEAT, (uint)vk);
-            RegisterHotKey(hwnd, 130 + i, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, (uint)vk);
+            TryRegisterHotkey(hwnd, 100 + i, MOD_NOREPEAT, (uint)vk);
+            TryRegisterHotkey(hwnd, 110 + i, MOD_ALT | MOD_NOREPEAT, (uint)vk);
+            TryRegisterHotkey(hwnd, 120 + i, MOD_CONTROL | MOD_NOREPEAT, (uint)vk);
+            TryRegisterHotkey(hwnd, 130 + i, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, (uint)vk);
         }
-        RegisterHotKey(hwnd, 200, MOD_NOREPEAT, 0x20); // Space
-        RegisterHotKey(hwnd, 201, MOD_NOREPEAT, 0x0D); // Enter
-        RegisterHotKey(hwnd, 202, MOD_CONTROL | MOD_NOREPEAT, 0x20); // Ctrl+Space: saved cue
+        TryRegisterHotkey(hwnd, 200, MOD_NOREPEAT, 0x20);
+        TryRegisterHotkey(hwnd, 201, MOD_NOREPEAT, 0x0D);
+        TryRegisterHotkey(hwnd, 202, MOD_CONTROL | MOD_NOREPEAT, 0x20);
+    }
+
+    private void TryRegisterHotkey(IntPtr hwnd, int id, uint modifiers, uint key)
+    {
+        if (RegisterHotKey(hwnd, id, modifiers, key)) _registeredHotkeyIds.Add(id);
     }
 
     private void UnregisterKeys()
     {
         var hwnd = new WindowInteropHelper(this).Handle;
-        for (int id = 100; id <= 139; id++) UnregisterHotKey(hwnd, id);
-        UnregisterHotKey(hwnd, 200); UnregisterHotKey(hwnd, 201); UnregisterHotKey(hwnd, 202);
+        foreach (int id in _registeredHotkeyIds) UnregisterHotKey(hwnd, id);
+        _registeredHotkeyIds.Clear();
+    }
+
+    private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (Keyboard.FocusedElement is System.Windows.Controls.Primitives.TextBoxBase ||
+            Keyboard.FocusedElement is PasswordBox || Keyboard.FocusedElement is ComboBox)
+            return;
+
+        Key key = e.Key == Key.System ? e.SystemKey : e.Key;
+        int digit = key switch
+        {
+            Key.D0 or Key.NumPad0 => 0,
+            >= Key.D1 and <= Key.D9 => (int)key - (int)Key.D0,
+            >= Key.NumPad1 and <= Key.NumPad9 => (int)key - (int)Key.NumPad0,
+            _ => -1
+        };
+        if (digit >= 0)
+        {
+            ModifierKeys mods = Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Alt);
+            int group = mods switch
+            {
+                ModifierKeys.None => 0,
+                ModifierKeys.Alt => 1,
+                ModifierKeys.Control => 2,
+                ModifierKeys.Control | ModifierKeys.Alt => 3,
+                _ => -1
+            };
+            if (group >= 0)
+            {
+                int id = 100 + group * 10 + digit;
+                if (!_registeredHotkeyIds.Contains(id))
+                    LaunchNumber(group * 10 + (digit == 0 ? 10 : digit));
+                e.Handled = true;
+                return;
+            }
+        }
+
+        if (key == Key.Space && (Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Alt)) == ModifierKeys.None)
+        {
+            if (!_registeredHotkeyIds.Contains(200)) TogglePlay();
+            e.Handled = true;
+        }
+        else if (key == Key.Enter && (Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Alt)) == ModifierKeys.None)
+        {
+            if (!_registeredHotkeyIds.Contains(201)) Restart();
+            e.Handled = true;
+        }
+        else if (key == Key.Space && Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            if (!_registeredHotkeyIds.Contains(202)) PlayFromCue();
+            e.Handled = true;
+        }
+    }
+
+    private void LaunchNumber(int number)
+    {
+        var track = Tracks.FirstOrDefault(t => t.Number == number);
+        if (track != null) SelectTrack(track, true);
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -401,9 +487,7 @@ public partial class MainWindow : Window
             {
                 int group = (id - 100) / 10;
                 int digit = (id - 100) % 10;
-                int number = group switch { 0 => (digit == 0 ? 10 : digit), 1 => (digit == 0 ? 20 : 10 + digit), 2 => (digit == 0 ? 30 : 20 + digit), _ => (digit == 0 ? 40 : 30 + digit) };
-                var track = Tracks.FirstOrDefault(t => t.Number == number);
-                if (track != null) SelectTrack(track, true);
+                LaunchNumber(group * 10 + (digit == 0 ? 10 : digit));
             }
             handled = true;
         }
@@ -415,7 +499,8 @@ public partial class MainWindow : Window
         foreach (var path in paths.Where(File.Exists))
         {
             if (Tracks.Any(t => string.Equals(t.Path, path, StringComparison.OrdinalIgnoreCase))) continue;
-            int n = 1; while (Tracks.Any(t => t.Number == n)) n++;
+            int n = Enumerable.Range(1, 40).FirstOrDefault(candidate => !Tracks.Any(t => t.Number == candidate));
+            if (n == 0) { n = 41; while (Tracks.Any(t => t.Number == n)) n++; }
             Tracks.Add(new Track { Number = n, Name = Path.GetFileNameWithoutExtension(path), Path = path });
         }
         SaveLibrary();
@@ -423,8 +508,18 @@ public partial class MainWindow : Window
 
     public void RemoveTrack(Track track)
     {
-        if (CurrentTrack == track) { Pause(); CurrentTrack = null; _mediaReady = false; _player.Close(); UpdatePlayerUi(); UpdateTimelineUi(); }
-        Tracks.Remove(track); SaveLibrary();
+        if (CurrentTrack == track)
+        {
+            Pause(); CurrentTrack = null; _mediaReady = false; _pendingPlay = false;
+            _player.Close(); _waveformPeaks = Array.Empty<double>();
+            WaveformCanvas.Children.Clear(); NowCoverImage.Source = null;
+            _selectedPosition = TimeSpan.Zero; _hasTimelineSelection = false;
+            UpdatePlayerUi(); UpdateTimelineUi();
+        }
+        Tracks.Remove(track);
+        PlaylistList.SelectedItem = null;
+        SaveLibrary();
+        PlaylistCount.Text = Tracks.Count.ToString();
     }
 
     public void SaveLibrary() => File.WriteAllText(_libraryFile, System.Text.Json.JsonSerializer.Serialize(Tracks));

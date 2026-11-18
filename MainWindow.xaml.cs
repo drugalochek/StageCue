@@ -49,6 +49,8 @@ public partial class MainWindow : Window
         PageFrame.Navigate(new LibraryPage(this));
         Loaded += (_, _) => RegisterKeys();
         PreviewKeyDown += MainWindow_PreviewKeyDown;
+        PreviewGotKeyboardFocus += MainWindow_PreviewGotKeyboardFocus;
+        PreviewLostKeyboardFocus += MainWindow_PreviewLostKeyboardFocus;
         SourceInitialized += (_, _) => { _source = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle); _source?.AddHook(WndProc); };
         Closed += (_, _) => { UnregisterKeys(); SaveLibrary(); _timelineTimer.Stop(); _player.Close(); };
         _player.MediaOpened += (_, _) =>
@@ -338,7 +340,7 @@ public partial class MainWindow : Window
         try
         {
             var pictures = TagLib.File.Create(path).Tag.Pictures;
-            if (pictures.Length == 0) { NowCoverImage.Source = null; return; }
+            if (pictures.Length == 0) { NowCoverImage.Source = null; NowCoverFallback.Visibility = Visibility.Visible; return; }
             using var stream = new MemoryStream(pictures[0].Data.Data);
             var bitmap = new BitmapImage();
             bitmap.BeginInit();
@@ -347,14 +349,15 @@ public partial class MainWindow : Window
             bitmap.EndInit();
             bitmap.Freeze();
             NowCoverImage.Source = bitmap;
+            NowCoverFallback.Visibility = Visibility.Collapsed;
         }
-        catch { NowCoverImage.Source = null; }
+        catch { NowCoverImage.Source = null; NowCoverFallback.Visibility = Visibility.Visible; }
     }
 
     private void UpdatePlayerUi()
     {
         NowTitle.Text = CurrentTrack?.Name ?? "Ничего не играет";
-        if (CurrentTrack == null) NowCoverImage.Source = null;
+        if (CurrentTrack == null) { NowCoverImage.Source = null; NowCoverFallback.Visibility = Visibility.Visible; }
         NowSub.Text = CurrentTrack is null ? "Выбери трек в фонотеке или нажми горячую клавишу" : $"Трек №{CurrentTrack.Number}  •  {Path.GetFileName(CurrentTrack.Path)}";
         PlayButton.Content = _playing ? "Ⅱ" : "▶";
         if (PlaylistList != null && CurrentTrack != null && PlaylistList.SelectedItem != CurrentTrack)
@@ -385,7 +388,40 @@ public partial class MainWindow : Window
     private void NavHome_Click(object sender, RoutedEventArgs e) => ShowPage(new OverviewPage(this));
     private void NavFeed_Click(object sender, RoutedEventArgs e) => ShowPage(new FeedPage(this));
     private void NavLibrary_Click(object sender, RoutedEventArgs e) => ShowPage(new LibraryPage(this));
-    private void AddFilesButton_Click(object sender, RoutedEventArgs e) => ShowPage(new LibraryPage(this, true));
+    private void AddFilesButton_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Multiselect = true,
+            Filter = "Аудиофайлы|*.mp3;*.wav;*.wma;*.m4a;*.aac;*.flac;*.ogg;*.aiff|Все файлы|*.*"
+        };
+        if (dialog.ShowDialog() == true)
+        {
+            AddFiles(dialog.FileNames);
+            if (PageFrame.Content is LibraryPage library) library.Refresh();
+        }
+    }
+
+    private void RemoveSelectedTrack_Click(object sender, RoutedEventArgs e)
+    {
+        if (PlaylistList.SelectedItem is not Track track) return;
+        var answer = MessageBox.Show($"Убрать «{track.Name}» из фонотеки? Файл на диске останется.", "StageCue", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (answer == MessageBoxResult.Yes) RemoveTrack(track);
+    }
+
+    private void MoveSelectedTrackUp_Click(object sender, RoutedEventArgs e) => MoveSelectedTrack(-1);
+    private void MoveSelectedTrackDown_Click(object sender, RoutedEventArgs e) => MoveSelectedTrack(1);
+
+    private void MoveSelectedTrack(int delta)
+    {
+        if (PlaylistList.SelectedItem is not Track track) return;
+        int index = Tracks.IndexOf(track);
+        int next = index + delta;
+        if (index < 0 || next < 0 || next >= Tracks.Count) return;
+        Tracks.Move(index, next);
+        PlaylistList.SelectedItem = track;
+        SaveLibrary();
+    }
     private void NavKeys_Click(object sender, RoutedEventArgs e) => ShowPage(new HotkeysPage(this));
     private void NavSettings_Click(object sender, RoutedEventArgs e) => ShowPage(new SettingsPage(this));
 
@@ -403,6 +439,27 @@ public partial class MainWindow : Window
         TryRegisterHotkey(hwnd, 200, MOD_NOREPEAT, 0x20);
         TryRegisterHotkey(hwnd, 201, MOD_NOREPEAT, 0x0D);
         TryRegisterHotkey(hwnd, 202, MOD_CONTROL | MOD_NOREPEAT, 0x20);
+    }
+
+    private void MainWindow_PreviewGotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        if (e.NewFocus is System.Windows.Controls.Primitives.TextBoxBase || e.NewFocus is PasswordBox || e.NewFocus is ComboBox)
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            for (int id = 100; id <= 109; id++)
+                if (_registeredHotkeyIds.Remove(id)) UnregisterHotKey(hwnd, id);
+        }
+    }
+
+    private void MainWindow_PreviewLostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        if (e.NewFocus is System.Windows.Controls.Primitives.TextBoxBase || e.NewFocus is PasswordBox || e.NewFocus is ComboBox) return;
+        var hwnd = new WindowInteropHelper(this).Handle;
+        for (int i = 0; i < 10; i++)
+        {
+            int vk = i == 0 ? 0x30 : 0x30 + i;
+            TryRegisterHotkey(hwnd, 100 + i, MOD_NOREPEAT, (uint)vk);
+        }
     }
 
     private void TryRegisterHotkey(IntPtr hwnd, int id, uint modifiers, uint key)

@@ -107,13 +107,13 @@ public class LibraryPage : BasePage
     private readonly ListBox _list=new();
     private readonly TextBox _rename=new();
     private readonly TextBlock _count;
-    public LibraryPage(MainWindow app,bool openPicker=false):base(app,"Фонотека","Все аудиофайлы, номера запуска и названия фонограмм")
+    public LibraryPage(MainWindow app,bool openPicker=false):base(app,"Локальные файлы","Фонотека StageCue")
     {
         var top=new DockPanel();
         _count=Theme.Text($"{app.Tracks.Count} ФОНОГРАММ",10,true,Theme.Muted); DockPanel.SetDock(_count,Dock.Left); top.Children.Add(_count);
         var add=Theme.Button("＋ Добавить файлы",(_,_)=>AddFiles(),true); DockPanel.SetDock(add,Dock.Right); top.Children.Add(add); Root.Children.Add(top);
-        _list.Height=340; _list.Margin=new Thickness(0,13,0,13); _list.SelectionChanged+=(_,_)=>{if(SelectedTrack() is Track t){_rename.Text=t.Name;app.SelectTrack(t,false);}};
-        Refresh(); Root.Children.Add(Theme.Card(_list,new Thickness(0,0,0,12),new Thickness(7)));
+        _list.MinHeight=420; _list.Margin=new Thickness(0,5,0,5); _list.BorderThickness=new Thickness(0); _list.Background=Brushes.Transparent; _list.SelectionChanged+=(_,_)=>{if(SelectedTrack() is Track t){_rename.Text=t.Name;app.SelectTrack(t,false);}};
+        Refresh(); Root.Children.Add(_list);
         Root.Children.Add(Theme.Text("НАЗВАНИЕ ВЫБРАННОЙ ФОНОГРАММЫ",10,true,Theme.Muted));
         _rename.Margin=new Thickness(0,8,0,10); Root.Children.Add(_rename);
         var row=new StackPanel{Orientation=Orientation.Horizontal};
@@ -133,12 +133,12 @@ public class LibraryPage : BasePage
         _list.Items.Clear();
         foreach(var t in AppWindow.Tracks.OrderBy(t=>t.Number))
         {
-            var row=new Grid{Margin=new Thickness(4,3,4,3)};
+            var row=new Grid{Margin=new Thickness(4,1,4,1),MinHeight=38};
             row.ColumnDefinitions.Add(new ColumnDefinition{Width=new GridLength(48)});
             row.ColumnDefinitions.Add(new ColumnDefinition{Width=new GridLength(1,GridUnitType.Star)});
-            var num=Theme.Text(t.Number.ToString("00"),14,true,Theme.Accent); num.VerticalAlignment=VerticalAlignment.Center; row.Children.Add(num);
-            var name=Theme.Text(t.Name,13,true); name.VerticalAlignment=VerticalAlignment.Center; Grid.SetColumn(name,1); row.Children.Add(name);
-            _list.Items.Add(new ListBoxItem{Content=row,Tag=t,Padding=new Thickness(8),Background=Brushes.Transparent});
+            var num=Theme.Text(t.Number.ToString("00"),12,true,Theme.Accent); num.VerticalAlignment=VerticalAlignment.Center; row.Children.Add(num);
+            var name=Theme.Text(t.Name,12,true); name.VerticalAlignment=VerticalAlignment.Center; Grid.SetColumn(name,1); row.Children.Add(name);
+            _list.Items.Add(new ListBoxItem{Content=row,Tag=t,Padding=new Thickness(7,4,7,4),Background=Brushes.Transparent,BorderThickness=new Thickness(0)});
         }
         _count.Text=$"{AppWindow.Tracks.Count} ФОНОГРАММ";
         if(selected!=null) foreach(ListBoxItem item in _list.Items) if(ReferenceEquals(item.Tag,selected)) _list.SelectedItem=item;

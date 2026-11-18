@@ -248,7 +248,7 @@ public class LibraryPage : Page
         catch { return null; }
     }
 
-    private void Refresh()
+    public void Refresh()
     {
         _tiles.Children.Clear();
         string query = _search.Text.Trim();

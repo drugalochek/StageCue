@@ -21,6 +21,9 @@ public partial class MainWindow : Window
     private readonly string _libraryFile;
     private HwndSource? _source;
     private bool _playing;
+    private bool _shuffleEnabled;
+    private bool _repeatCurrent;
+    private readonly Random _random = new();
     private bool _mediaReady;
     private bool _pendingPlay;
     private bool _updatingTimeline;
@@ -63,7 +66,16 @@ public partial class MainWindow : Window
             if (_pendingPlay) { _pendingPlay = false; _player.Play(); _playing = true; }
             UpdatePlayerUi();
         };
-        _player.MediaEnded += (_, _) => { _playing = false; Dispatcher.Invoke(() => { UpdatePlayerUi(); UpdateTimelineUi(); }); };
+        _player.MediaEnded += (_, _) => Dispatcher.Invoke(() =>
+        {
+            _playing = false;
+            if (_repeatCurrent && CurrentTrack != null)
+                Restart();
+            else
+                PlayNextTrack();
+            UpdatePlayerUi();
+            UpdateTimelineUi();
+        });
         _player.MediaFailed += (_, e) => { _mediaReady = false; _pendingPlay = false; MessageBox.Show("Не удалось открыть аудио: " + e.ErrorException?.Message, "StageCue"); };
         _timelineTimer.Tick += (_, _) => { if (!_isSeeking) UpdateTimelineUi(); };
         _timelineTimer.Start();
@@ -380,6 +392,84 @@ public partial class MainWindow : Window
     }
 
     private void PlayButton_Click(object sender, RoutedEventArgs e) => TogglePlay();
+
+    private void PreviousButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (CurrentTrack == null) return;
+        if (_mediaReady && _player.Position > TimeSpan.FromSeconds(3))
+        {
+            Restart();
+            return;
+        }
+        PlayPreviousTrack();
+    }
+
+    private void NextButton_Click(object sender, RoutedEventArgs e) => PlayNextTrack();
+
+    private void ShuffleButton_Click(object sender, RoutedEventArgs e)
+    {
+        _shuffleEnabled = !_shuffleEnabled;
+        ShuffleButton.Background = _shuffleEnabled
+            ? new SolidColorBrush(Color.FromRgb(77, 155, 250))
+            : new SolidColorBrush(Color.FromRgb(38, 54, 74));
+        ShuffleButton.Foreground = new SolidColorBrush(Color.FromRgb(240, 244, 250));
+        ShuffleButton.ToolTip = _shuffleEnabled ? "Перемешивание включено" : "Перемешивание выключено";
+    }
+
+    private void RepeatButton_Click(object sender, RoutedEventArgs e)
+    {
+        _repeatCurrent = !_repeatCurrent;
+        RepeatButton.Background = _repeatCurrent
+            ? new SolidColorBrush(Color.FromRgb(77, 155, 250))
+            : new SolidColorBrush(Color.FromRgb(38, 54, 74));
+        RepeatButton.ToolTip = _repeatCurrent ? "Повтор текущего трека включён" : "Повтор выключен";
+    }
+
+    private void PlayNextTrack()
+    {
+        if (Tracks.Count == 0) return;
+        if (CurrentTrack == null)
+        {
+            SelectTrack(Tracks[0], true);
+            return;
+        }
+
+        if (_shuffleEnabled && Tracks.Count > 1)
+        {
+            var candidates = Tracks.Where(t => t != CurrentTrack).ToList();
+            SelectTrack(candidates[_random.Next(candidates.Count)], true);
+            return;
+        }
+
+        int index = Tracks.IndexOf(CurrentTrack);
+        if (index < 0) index = -1;
+        int next = index + 1;
+        if (next >= Tracks.Count)
+        {
+            _playing = false;
+            UpdatePlayerUi();
+            return;
+        }
+        SelectTrack(Tracks[next], true);
+    }
+
+    private void PlayPreviousTrack()
+    {
+        if (Tracks.Count == 0) return;
+        if (CurrentTrack == null)
+        {
+            SelectTrack(Tracks[0], true);
+            return;
+        }
+
+        int index = Tracks.IndexOf(CurrentTrack);
+        if (index <= 0)
+        {
+            Restart();
+            return;
+        }
+        SelectTrack(Tracks[index - 1], true);
+    }
     private void StopButton_Click(object sender, RoutedEventArgs e)
     {
         _player.Stop(); _playing = false; _selectedPosition = TimeSpan.Zero; _seekRequested = false;

@@ -23,6 +23,7 @@ public partial class MainWindow : Window
     private bool _playing;
     private bool _shuffleEnabled;
     private bool _repeatCurrent;
+    private bool _autoPlayNext = true;
     private readonly Random _random = new();
     private bool _mediaReady;
     private bool _pendingPlay;
@@ -71,8 +72,13 @@ public partial class MainWindow : Window
             _playing = false;
             if (_repeatCurrent && CurrentTrack != null)
                 Restart();
-            else
+            else if (_autoPlayNext)
                 PlayNextTrack();
+            else
+            {
+                _player.Stop();
+                _playing = false;
+            }
             UpdatePlayerUi();
             UpdateTimelineUi();
         });
@@ -385,6 +391,12 @@ public partial class MainWindow : Window
         if (CurrentTrack == null) { NowCoverImage.Source = null; NowCoverFallback.Visibility = Visibility.Visible; }
         NowSub.Text = CurrentTrack is null ? "Выбери трек в фонотеке или нажми горячую клавишу" : $"Трек №{CurrentTrack.Number}  •  {Path.GetFileName(CurrentTrack.Path)}";
         PlayButton.Content = _playing ? "Ⅱ" : "▶";
+        if (AutoNextButton != null)
+        {
+            AutoNextButton.Content = _autoPlayNext ? "AUTO NEXT ✓" : "AUTO NEXT —";
+            AutoNextButton.Background = new SolidColorBrush(_autoPlayNext ? Color.FromRgb(70, 70, 70) : Color.FromRgb(35, 35, 35));
+            AutoNextButton.ToolTip = _autoPlayNext ? "Автопереход к следующей фонограмме включён" : "Автопереход к следующей фонограмме выключен";
+        }
         if (PlaylistList != null && CurrentTrack != null && PlaylistList.SelectedItem != CurrentTrack)
             PlaylistList.SelectedItem = CurrentTrack;
         if (StatusText != null) StatusText.Text = _playing ? "ВОСПРОИЗВЕДЕНИЕ" : (CurrentTrack == null ? "ГОТОВ К РАБОТЕ" : "ТРЕК ВЫБРАН");
@@ -410,8 +422,8 @@ public partial class MainWindow : Window
     {
         _shuffleEnabled = !_shuffleEnabled;
         ShuffleButton.Background = _shuffleEnabled
-            ? new SolidColorBrush(Color.FromRgb(77, 155, 250))
-            : new SolidColorBrush(Color.FromRgb(38, 54, 74));
+            ? new SolidColorBrush(Color.FromRgb(70, 70, 70))
+            : new SolidColorBrush(Color.FromRgb(35, 35, 35));
         ShuffleButton.Foreground = new SolidColorBrush(Color.FromRgb(240, 244, 250));
         ShuffleButton.ToolTip = _shuffleEnabled ? "Перемешивание включено" : "Перемешивание выключено";
     }
@@ -420,9 +432,15 @@ public partial class MainWindow : Window
     {
         _repeatCurrent = !_repeatCurrent;
         RepeatButton.Background = _repeatCurrent
-            ? new SolidColorBrush(Color.FromRgb(77, 155, 250))
-            : new SolidColorBrush(Color.FromRgb(38, 54, 74));
+            ? new SolidColorBrush(Color.FromRgb(70, 70, 70))
+            : new SolidColorBrush(Color.FromRgb(35, 35, 35));
         RepeatButton.ToolTip = _repeatCurrent ? "Повтор текущего трека включён" : "Повтор выключен";
+    }
+
+    private void AutoNextButton_Click(object sender, RoutedEventArgs e)
+    {
+        _autoPlayNext = !_autoPlayNext;
+        UpdatePlayerUi();
     }
 
     private void PlayNextTrack()
@@ -637,7 +655,7 @@ public partial class MainWindow : Window
     private void LaunchNumber(int number)
     {
         var track = Tracks.FirstOrDefault(t => t.Number == number);
-        if (track != null) SelectTrack(track, true);
+        if (track != null) SelectTrack(track, false);
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)

@@ -11,12 +11,12 @@ namespace StageCue;
 
 internal static class Theme
 {
-    public static readonly Brush Panel = Brush("#252B32");
-    public static readonly Brush Panel2 = Brush("#26364A");
-    public static readonly Brush Line = Brush("#46515D");
-    public static readonly Brush Muted = Brush("#9BA8B5");
-    public static readonly Brush Accent = Brush("#76A9D8");
-    public static readonly Brush White = Brush("#F0F4FA");
+    public static readonly Brush Panel = Brush("#151515");
+    public static readonly Brush Panel2 = Brush("#242424");
+    public static readonly Brush Line = Brush("#353535");
+    public static readonly Brush Muted = Brush("#A0A0A0");
+    public static readonly Brush Accent = Brush("#B0B0B0");
+    public static readonly Brush White = Brush("#F0F0F0");
     public static SolidColorBrush Brush(string hex) => new((Color)ColorConverter.ConvertFromString(hex));
     public static TextBlock Text(string value, double size=13, bool bold=false, Brush? color=null) =>
         new() { Text=value, FontSize=size, FontWeight=bold?FontWeights.SemiBold:FontWeights.Normal, Foreground=color??White, TextWrapping=TextWrapping.Wrap };
@@ -72,7 +72,7 @@ public class OverviewPage : BasePage
             content.Children.Add(Theme.Text(n.ToString("00"),18,true,Theme.Accent));
             content.Children.Add(Theme.Text(track?.Name??"Пусто",10,false,track is null?Theme.Muted:Theme.White));
             var b=new Button { Content=content, Background=Theme.Panel2, BorderBrush=Theme.Line, BorderThickness=new Thickness(1), Margin=new Thickness(0,0,8,8), Padding=new Thickness(10), HorizontalContentAlignment=HorizontalAlignment.Left };
-            if(track!=null) b.Click+=(_,_)=>app.SelectTrack(track,true);
+            if(track!=null) b.Click+=(_,_)=>app.SelectTrack(track,false);
             grid.Children.Add(b);
         }
         Root.Children.Add(Theme.Card(grid));
@@ -95,9 +95,9 @@ public class FeedPage : BasePage
             var stack=new StackPanel();
             stack.Children.Add(Theme.Text(number.ToString("00"),20,true,Theme.Accent));
             stack.Children.Add(Theme.Text(track?.Name??"Не назначено",11,true));
-            stack.Children.Add(Theme.Text(track is null?"Пустой слот":"НАЖМИ ДЛЯ ЗАПУСКА",8,true,Theme.Muted));
+            stack.Children.Add(Theme.Text(track is null?"Пустой слот":"НАЖМИ ДЛЯ ВЫБОРА",8,true,Theme.Muted));
             var b=new Button{Content=stack,Background=Theme.Panel,BorderBrush=Theme.Line,BorderThickness=new Thickness(1),Padding=new Thickness(12),Margin=new Thickness(0,0,9,9),HorizontalContentAlignment=HorizontalAlignment.Left};
-            if(track!=null) b.Click+=(_,_)=>app.SelectTrack(track,true);
+            if(track!=null) b.Click+=(_,_)=>app.SelectTrack(track,false);
             grid.Children.Add(b);
         }
         Root.Children.Add(grid);
@@ -144,8 +144,8 @@ public class LibraryPage : Page
 
         var editor = new Border
         {
-            Background = Theme.Brush("#192231"),
-            BorderBrush = Theme.Brush("#414141"),
+            Background = Theme.Brush("#101010"),
+            BorderBrush = Theme.Brush("#353535"),
             BorderThickness = new Thickness(0, 1, 0, 0),
             Padding = new Thickness(9, 7, 9, 7)
         };
@@ -266,14 +266,14 @@ public class LibraryPage : Page
 
         foreach (var track in tracks)
         {
-            var art = new Grid { Width = 142, Height = 118, Background = Theme.Brush("#111722"), ClipToBounds = false };
+            var art = new Grid { Width = 142, Height = 118, Background = Theme.Brush("#080808"), ClipToBounds = false };
             var cover = ReadCover(track.Path);
             if (cover != null)
                 art.Children.Add(new Image { Source = cover, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch });
             else
-                art.Children.Add(new TextBlock { Text = "♫", FontSize = 43, Foreground = Theme.Brush("#8E969D"), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center });
+                art.Children.Add(new TextBlock { Text = "♫", FontSize = 43, Foreground = Theme.Brush("#929292"), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center });
 
-            var numberBadge = new Border { Background = Theme.Brush("#111722"), Opacity = .92, Padding = new Thickness(5, 2, 5, 2), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(5) };
+            var numberBadge = new Border { Background = Theme.Brush("#080808"), Opacity = .92, Padding = new Thickness(5, 2, 5, 2), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(5) };
             numberBadge.Child = new TextBlock { Text = track.Number is >= 1 and <= 40 ? track.Number.ToString("00") : "—", FontSize = 10, FontWeight = FontWeights.Bold, Foreground = Theme.Accent };
             art.Children.Add(numberBadge);
 
@@ -290,8 +290,8 @@ public class LibraryPage : Page
                 MinHeight = 174,
                 Padding = new Thickness(7),
                 Margin = new Thickness(3),
-                Background = Theme.Brush(_selected == track ? "#394B5C" : "#192231"),
-                BorderBrush = Theme.Brush(_selected == track ? "#6D9FCB" : "#414141"),
+                Background = Theme.Brush(_selected == track ? "#303030" : "#101010"),
+                BorderBrush = Theme.Brush(_selected == track ? "#777777" : "#353535"),
                 BorderThickness = new Thickness(1),
                 HorizontalContentAlignment = HorizontalAlignment.Left,
                 VerticalContentAlignment = VerticalAlignment.Top,

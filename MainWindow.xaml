@@ -24,13 +24,13 @@
      <TextBlock x:Name="NowSub" Grid.Row="1" Text="Выбери фонограмму в фонотеке" FontSize="12" Foreground="#A9B8CC" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"/>
      <TextBlock Grid.Row="2" Text="STAGECUE • SHOW CONTROL" FontSize="9" Foreground="#87929B" Margin="0,4,0,0"/>
      <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,2">
-      <Button Content="⤨" Width="36" Height="30" Margin="3,0" ToolTip="Режим воспроизведения"/>
-      <Button Content="|◀" Width="38" Height="30" Margin="3,0" ToolTip="Предыдущая фонограмма"/>
+      <Button x:Name="RepeatButton" Content="↻" Width="36" Height="30" Margin="3,0" Click="RepeatButton_Click" ToolTip="Повтор: выкл. / один трек"/>
+      <Button Content="|◀" Width="38" Height="30" Margin="3,0" Click="PreviousButton_Click" ToolTip="Предыдущая фонограмма"/>
       <Button Content="■" Width="38" Height="30" Margin="3,0" Click="StopButton_Click" ToolTip="Стоп"/>
       <Button x:Name="PlayButton" Content="▶" Width="48" Height="34" Margin="3,0" FontSize="17" Background="#4D9BFA" Click="PlayButton_Click" ToolTip="Играть / пауза"/>
       <Button Content="Ⅱ" Width="38" Height="30" Margin="3,0" Click="PlayButton_Click" ToolTip="Пауза"/>
-      <Button Content="▶|" Width="38" Height="30" Margin="3,0" ToolTip="Следующая фонограмма"/>
-      <Button Content="⤢" Width="36" Height="30" Margin="3,0" ToolTip="Перемешать"/>
+      <Button Content="▶|" Width="38" Height="30" Margin="3,0" Click="NextButton_Click" ToolTip="Следующая фонограмма"/>
+      <Button x:Name="ShuffleButton" Content="⤢" Width="36" Height="30" Margin="3,0" Click="ShuffleButton_Click" ToolTip="Перемешивание"/>
      </StackPanel>
     </Grid>
     <StackPanel Grid.Row="0" Grid.Column="2" VerticalAlignment="Top" Margin="4,5,2,0">

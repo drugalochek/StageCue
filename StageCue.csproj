@@ -11,7 +11,7 @@
     <Version>0.1.0</Version>
     <AssemblyVersion>0.1.0.0</AssemblyVersion>
     <FileVersion>0.1.0.0</FileVersion>
-    <ApplicationIcon>Assets\StageCue.ico</ApplicationIcon>
+    <ApplicationIcon>Glossy Blue Monogram Emblem.ico</ApplicationIcon>
 
     <!-- Declare WPF XAML items explicitly for consistent builds across SDK 8/10/11. -->
     <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>

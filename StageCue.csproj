@@ -19,6 +19,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Resource Include="Glossy Blue Monogram Emblem.ico" />
     <ApplicationDefinition Include="App.xaml" />
     <Page Include="MainWindow.xaml" />
   </ItemGroup>
